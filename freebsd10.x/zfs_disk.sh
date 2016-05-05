@@ -21,7 +21,6 @@
 # # ./zfs_disk.sh -i zroot
 #
 # step 2
-# # ./zfs_disk.sh -o
 # # ./zfs_disk.sh -g da0 0 512k 4g 120g
 #       or # ./zfs_disk.sh -g da0 0
 # # ./zfs_disk.sh -g da1 1 512k 4g 120g
@@ -29,8 +28,8 @@
 # # ./zfs_disk.sh -g da3 3 512k 4g 120g
 #
 # step 3
-# # ./zfs_disk.sh -p zroot "raidz2 da0p3 da1p3 da2p3 da3p3"
-#       or: # ./zfs_disk.sh -p zroot "mirror da0p3 da1p3 mirror da2p3 da3p3"
+# # ./zfs_disk.sh -p zroot "raidz2 /dev/gpt/zfs0 /dev/gpt/zfs1 /dev/gpt/zfs2 /dev/gpt/zfs3"
+#       or: # ./zfs_disk.sh -p zroot "mirror /dev/gpt/zfs0 /dev/gpt/zfs1 mirror /dev/gpt/zfs2 /dev/gpt/zfs3"
 #
 # step 4
 # # ./zfs_disk.sh -z zroot auto
@@ -81,6 +80,7 @@ echo "\${THIS_OPE} > ${THIS_OPE}" >> ${THIS_FILE}.log
 
 # begin
 case "${THIS_OPE}" in
+
     # init: # ./zfs_disk.sh -i zroot
     init|-i)
         THIS_POOLNAME=$2
@@ -90,17 +90,17 @@ case "${THIS_OPE}" in
             echo -e "${HELP_INFO}"
             exit 1
         fi
-        echo "Begin init:" >> ${THIS_FILE}.log
+        echo "Begin init ------" >> ${THIS_FILE}.log
         echo "\${THIS_POOLNAME} > ${THIS_POOLNAME}" >> ${THIS_FILE}.log
+
+        printf "" > "/tmp/bsdinstall_etc/fstab"
+        printf "${FSTAB_FMT}" "# Device" "Mountpoint" "FStype" "Options" "Dump" "Pass#" >> "/tmp/bsdinstall_etc/fstab"
 
         zpool destroy "${THIS_POOLNAME}" >> ${THIS_FILE}.log 2>&1
         sysctl vfs.zfs.min_auto_ashift=12 >> ${THIS_FILE}.log 2>&1
 
-        printf "" > "/tmp/bsdinstall_etc/fstab"
-        printf "$FSTAB_FMT" "# Device" "Mountpoint" "FStype" "Options" "Dump" "Pass#" >> "/tmp/bsdinstall_etc/fstab"
-
-        echo "End init---" >> ${THIS_FILE}.log
-        echo "init successful..."
+        echo "End init ------" >> ${THIS_FILE}.log
+        echo "init finish..."
         ;;
 
     # gpart: # ./zfs_disk.sh -g da0 0 512k 4g 120g
@@ -117,13 +117,13 @@ case "${THIS_OPE}" in
             echo -e "${HELP_INFO}"
             exit 1
         fi
-        echo "Begin gpart---" >> ${THIS_FILE}.log
+        echo "Begin gpart ------" >> ${THIS_FILE}.log
 
         if [ -z "${THIS_SIZE_BOOT}" ]; then
             THIS_SIZE_BOOT="512k"
         fi
         if [ -z "${THIS_SIZE_SWAP}" ]; then
-            THIS_SIZE_SWAP=`sysctl hw.physmem | sed -e 's/.*hw\.physmem: \([0-9]*\).*/\1/g'`
+            THIS_SIZE_SWAP=`sysctl -n hw.physmem`
             THIS_SIZE_SWAP=`echo "scale=2; ${THIS_SIZE_SWAP}/1024/1024/1024" | bc`
             THIS_SIZE_SWAP="`printf "%.0f" ${THIS_SIZE_SWAP}`g"
         fi
@@ -143,12 +143,12 @@ case "${THIS_OPE}" in
 
         THIS_BOOT=`gpart add -a 4k -l gptboot${THIS_LABEL} -t freebsd-boot -s ${THIS_SIZE_BOOT} "${THIS_DEVICE}"`
         THIS_BOOT_NAME=`echo ${THIS_BOOT} | sed -e 's/\([a-zA-Z0-9]*\) added/\1/g'`
-        echo "\${THIS_BOOT} > ${THIS_BOOT}" >> ${THIS_FILE}.log 2>&1
+        echo "\${THIS_BOOT} > ${THIS_BOOT}" >> ${THIS_FILE}.log
         gpart bootcode -b "/boot/pmbr" -p "/boot/gptzfsboot" -i 1 "${THIS_DEVICE}" >> ${THIS_FILE}.log 2>&1
 
         THIS_SWAP=`gpart add -a 1m -l swap${THIS_LABEL} -t freebsd-swap -s ${THIS_SIZE_SWAP} "${THIS_DEVICE}"`
         THIS_SWAP_NAME=`echo ${THIS_SWAP} | sed -e 's/\([a-zA-Z0-9]*\) added/\1/g'`
-        echo "\${THIS_SWAP} > ${THIS_SWAP}" >> ${THIS_FILE}.log 2>&1
+        echo "\${THIS_SWAP} > ${THIS_SWAP}" >> ${THIS_FILE}.log
         zpool labelclear -f "/dev/${THIS_SWAP_NAME}" >> ${THIS_FILE}.log 2>&1
 
         if [ -z "${THIS_SIZE_ZFS}" ]; then
@@ -157,7 +157,7 @@ case "${THIS_OPE}" in
             THIS_ZFS=`gpart add -a 1m -l zfs${THIS_LABEL} -t freebsd-zfs -s ${THIS_SIZE_ZFS} "${THIS_DEVICE}"`
         fi
         THIS_ZFS_NAME=`echo ${THIS_ZFS} | sed -e 's/\([a-zA-Z0-9]*\) added/\1/g'`
-        echo "\${THIS_ZFS} > ${THIS_ZFS}" >> ${THIS_FILE}.log 2>&1
+        echo "\${THIS_ZFS} > ${THIS_ZFS}" >> ${THIS_FILE}.log
         zpool labelclear -f "/dev/${THIS_ZFS_NAME}" >> ${THIS_FILE}.log 2>&1
 
         printf "${FSTAB_FMT}" "/dev/${THIS_SWAP_NAME}" "none" "swap" "sw" "0" "0" >> "/tmp/bsdinstall_etc/fstab"
@@ -166,12 +166,12 @@ case "${THIS_OPE}" in
         echo "                 freebsd-swap:${THIS_SWAP_NAME}"
         echo "                 freebsd-zfs :${THIS_ZFS_NAME}"
 
-        echo "End gpart---" >> ${THIS_FILE}.log
-        echo "create partition successful..."
+        echo "End gpart ------" >> ${THIS_FILE}.log
+        echo "create partition finish..."
         ;;
 
-    # pool: # ./zfs_disk.sh -p zroot "raidz2 da0p3 da1p3 da2p3 da3p3"
-    #   or: # ./zfs_disk.sh -p zroot "mirror da0p3 da1p3 mirror da2p3 da3p3"
+    # pool: # ./zfs_disk.sh -p zroot "raidz2 /dev/gpt/zfs0 /dev/gpt/zfs1 /dev/gpt/zfs2 /dev/gpt/zfs3"
+    #   or: # ./zfs_disk.sh -p zroot "mirror /dev/gpt/zfs0 /dev/gpt/zfs1 mirror /dev/gpt/zfs2 /dev/gpt/zfs3"
     pool|-p)
         THIS_POOLNAME=$2
         THIS_POOLCOMMAND=$3
@@ -181,17 +181,20 @@ case "${THIS_OPE}" in
             echo -e "${HELP_INFO}"
             exit 1
         fi
-        echo "Begin pool---" >> ${THIS_FILE}.log
+        echo "Begin pool ------" >> ${THIS_FILE}.log
         echo "\${THIS_POOLNAME} > ${THIS_POOLNAME}" >> ${THIS_FILE}.log
         echo "\${THIS_POOLCOMMAND} > ${THIS_POOLCOMMAND}" >> ${THIS_FILE}.log
         echo "zpool create -o altroot=/mnt -O compress=lz4 -O atime=off -m none -f "${THIS_POOLNAME}" ${THIS_POOLCOMMAND}" >> ${THIS_FILE}.log
 
-        zpool create -o altroot=/mnt -O compress=lz4 -O atime=off -m none -f "${THIS_POOLNAME}" ${THIS_POOLCOMMAND} >> ${THIS_FILE}.log 2>&1
-        zfs create -o mountpoint=none "${THIS_POOLNAME}/ROOT" >> ${THIS_FILE}.log 2>&1
-        zfs create -o mountpoint=/ "${THIS_POOLNAME}/ROOT/default" >> ${THIS_FILE}.log 2>&1
+        THIS_ZPOOLCREATE=`zpool create -o altroot=/mnt -O compress=lz4 -O atime=off -m none -f "${THIS_POOLNAME}" ${THIS_POOLCOMMAND}`
+        echo "\${THIS_ZPOOLCREATE} > ${THIS_ZPOOLCREATE}" >> ${THIS_FILE}.log
+        THIS_ZPOOLCREATE_ROOT=`zfs create -o mountpoint=none "${THIS_POOLNAME}/ROOT"`
+        echo "\${THIS_ZPOOLCREATE_ROOT} > ${THIS_ZPOOLCREATE_ROOT}" >> ${THIS_FILE}.log
+        THIS_ZPOOLCREATE_ROOT_DEFAULT=`zfs create -o mountpoint=/ "${THIS_POOLNAME}/ROOT/default"`
+        echo "\${THIS_ZPOOLCREATE_ROOT_DEFAULT} > ${THIS_ZPOOLCREATE_ROOT_DEFAULT}" >> ${THIS_FILE}.log
 
-        echo "End pool---" >> ${THIS_FILE}.log
-        echo "create pool successful..."
+        echo "End pool ------" >> ${THIS_FILE}.log
+        echo "create pool finish..."
         ;;
 
     # zfs: # ./zfs_disk.sh -z zroot auto
@@ -206,7 +209,7 @@ case "${THIS_OPE}" in
             echo -e "${HELP_INFO}"
             exit 1
         fi
-        echo "Begin zfs---" >> ${THIS_FILE}.log
+        echo "Begin zfs ------" >> ${THIS_FILE}.log
         echo "\${THIS_POOLNAME} > ${THIS_POOLNAME}" >> ${THIS_FILE}.log
         echo "\${THIS_ZFSCOMMAND} > ${THIS_ZFSCOMMAND}" >> ${THIS_FILE}.log
 
@@ -229,8 +232,8 @@ case "${THIS_OPE}" in
             zfs create ${THIS_ZFSCOMMAND} >> ${THIS_FILE}.log 2>&1
         fi
 
-        echo "End zfs---" >> ${THIS_FILE}.log
-        echo "create dataset successful..."
+        echo "End zfs ------" >> ${THIS_FILE}.log
+        echo "create dataset finish..."
         ;;
 
     # finish: # ./zfs_disk.sh -f zroot
@@ -242,7 +245,7 @@ case "${THIS_OPE}" in
             echo -e "${HELP_INFO}"
             exit 1
         fi
-        echo "Begin finish---" >> ${THIS_FILE}.log
+        echo "Begin finish ------" >> ${THIS_FILE}.log
         echo "\${THIS_POOLNAME} > ${THIS_POOLNAME}" >> ${THIS_FILE}.log
 
         zfs set "mountpoint=/${THIS_POOLNAME}" "${THIS_POOLNAME}" >> ${THIS_FILE}.log 2>&1
@@ -258,14 +261,8 @@ case "${THIS_OPE}" in
         echo "zfs_enable=\"YES\"" >> "/tmp/bsdinstall_etc/rc.conf.zfs"
         echo "kern.geom.label.gptid.enable=\"0\"" >> "/tmp/bsdinstall_boot/loader.conf.zfs"
 
-        echo "End finish---" >> ${THIS_FILE}.log
-        echo "finish successful..."
-        ;;
-
-    # help: # ./zfs_disk.sh -h
-    help|-h)
-        echo -e "${HELP_INFO}"
-        exit 0
+        echo "End finish ------" >> ${THIS_FILE}.log
+        echo "finish finish..."
         ;;
 
     # info: # ./zfs_disk.sh -o
@@ -273,17 +270,26 @@ case "${THIS_OPE}" in
     info|-o)
         THIS_DEVICE=$2
 
-        echo "Begin info---" >> ${THIS_FILE}.log
+        echo "Begin info ------" >> ${THIS_FILE}.log
         echo "\${THIS_DEVICE} > ${THIS_DEVICE}" >> ${THIS_FILE}.log
 
         if [ -z "${THIS_DEVICE}" ]; then
-            gpart show
+            THIS_GPARTSHOW=`gpart show`
         else
-            gpart show "${THIS_DEVICE}"
+            THIS_GPARTSHOW=`gpart show "${THIS_DEVICE}"`
         fi
+        echo -e "${THIS_GPARTSHOW}" >> ${THIS_FILE}.log
 
-        echo "End info---" >> ${THIS_FILE}.log
-        echo "show disk info successful..."
+        echo -e "${THIS_GPARTSHOW}"
+
+        echo "End info ------" >> ${THIS_FILE}.log
+        echo "show disk info finish..."
+        ;;
+
+    # help: # ./zfs_disk.sh -h
+    help|-h)
+        echo -e "${HELP_INFO}"
+        exit 0
         ;;
 
     # error
