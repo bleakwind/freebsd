@@ -276,9 +276,9 @@ case "${THIS_OPE}" in
         echo "\${THIS_DEVICE} > ${THIS_DEVICE}" >> ${THIS_FILE}.log
 
         if [ -z "${THIS_DEVICE}" ]; then
-            THIS_GPARTSHOW=`gpart show`
+            THIS_GPARTSHOW=`gpart show -lp`
         else
-            THIS_GPARTSHOW=`gpart show "${THIS_DEVICE}"`
+            THIS_GPARTSHOW=`gpart show -lp "${THIS_DEVICE}"`
         fi
         echo -e "${THIS_GPARTSHOW}" >> ${THIS_FILE}.log
 
