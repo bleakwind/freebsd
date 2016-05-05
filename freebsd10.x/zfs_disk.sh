@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD10.2: zfs_disk.sh,v 1.1 2015/10/14 08:45:18 Bleakwind (at) www.weaverdream.com Exp $
+# $FreeBSD10.x: zfs_disk.sh,v 1.2 2016/05/05 18:59:59 Bleakwind (at) www.weaverdream.com Exp $
 #
 # - First when [Partitioning] select [Shell] and configure network:
 #
@@ -12,7 +12,7 @@
 # - Second fetch the shell file:
 #
 # # cd /tmp/
-# # fetch https://raw.githubusercontent.com/bleakwind/freebsd/master/freebsd10.2/zfs_disk.sh && chmod +x zfs_disk.sh
+# # fetch https://raw.githubusercontent.com/bleakwind/freebsd/master/freebsd10.x/zfs_disk.sh && chmod +x zfs_disk.sh
 # #     at: https://github.com/bleakwind/freebsd
 #
 # - Third allocating disk space:
